@@ -1,0 +1,151 @@
+const express = require('express');
+const mysql = require('mysql2');
+const { error } = require('node:console');
+const app = express();
+
+
+// Create MySQL connection
+const connection = mysql.createConnection({
+host: '127.0.0.1',
+user: 'root',
+password: 'RP738964$',
+database: 'c237_studentlistapp'
+});
+
+connection.connect((err) => {
+    if (err) {
+        console.error('Error connecting to MySQL:', err);
+        return;
+}
+console.log('Connected to MySQL database');
+});
+
+// Set up view engine
+app.set('view engine', 'ejs');
+// enable static files
+app.use(express.static('public'));
+// Define routes
+app.use(express.urlencoded({ extended: true }));
+
+app.get('/', (req, res) => {
+    const sql = `
+    SELECT studentId, name, DATE_FORMAT(dob, '%b %d, %Y') AS dob, contact, image
+    FROM student`;
+    // Fetch data from MySQL
+    connection.query( sql , (error, results) => {
+    if (error) {
+        console.error('Database query error:', error.message);
+        return res.send('Error Retrieving students');
+    }
+    console.log(results)
+    // Render HTML page with data
+    res.render('index', { students: results });
+    });
+});
+
+app.get('/student/:id', (req, res) => {
+    const studentId = req.params.id;
+    const sql = `
+    SELECT studentId, name, DATE_FORMAT(dob, '%b %d, %Y') AS dob, contact, image 
+    FROM student
+    WHERE studentId = ?`;
+    connection.query(sql, [studentId], (error, results) => {
+        if (error) {
+            console.error("Database query error:", error);
+            return res.send("Error retrieving student by ID");
+        }
+        if (results.length > 0){
+            res.render('student', {student: results[0]});
+        } else {
+            res.send(`Student with Id: ${studentId} not found`);
+        }
+    });
+});
+
+
+app.get('/addStudent', (req, res) => {
+    res.render('addStudent');
+})
+
+app.post('/addStudent', (req, res) => {
+        // Extract student data from the request body
+    const { name, dob, contact, image } = req.body;
+    const sql = `INSERT INTO student (name, dob, contact, image) VALUES (?,
+    ?, ?, ?)`;
+    // Insert the new student into the database
+    connection.query( sql , [name, dob, contact, image], (error, results) => {
+    if (error) {
+        // Handle any error that occurs during the database operation
+        console.error("Error adding student:", error);
+        res.send('Error adding student');
+    } else {
+        // Send a success response
+        res.redirect('/');
+        }
+    });
+});
+
+app.get('/editStudent/:id', (req, res) => {
+    const studentId = req.params.id;
+    const sql = `
+    SELECT studentId, name, DATE_FORMAT(dob, '%Y-%m-%d') AS dob, contact, image 
+    FROM student
+    WHERE studentId = ?`;
+    connection.query(sql, [studentId], (error, results) => {
+        if (error) {
+            console.error("Database query error:", error.message);
+            return res.send("Error retrieving student by ID");
+        }
+        if (results.length > 0){
+            res.render('editStudent', {student: results[0]});
+        } else {
+            res.send(`Student with Id: ${studentId} not found`);
+        }
+    });
+});
+
+
+app.post('/editStudent/:id', (req, res) => {
+        // Extract student data from the request body
+    const studentId = req.params.id;
+    const { name, dob, contact } = req.body;
+    const sql = `
+    UPDATE student
+    SET name = ?, dob = ?, contact = ?
+    WHERE studentId = ?`;
+    // Insert the new student into the database
+    connection.query( sql , [name, dob, contact, studentId], (error, results) => {
+    if (error) {
+        // Handle any error that occurs during the database operation
+        console.error("Error updating student:", error.message);
+        res.send(`Error updating student with Id: ${studentId}`);
+    } else {
+        // Send a success response
+        res.redirect('/');
+        }
+    });
+});
+
+app.get('/deleteStudent/:id', (req, res) => {
+        // Extract student data from the request body
+    const studentId = req.params.id;
+    const sql = `
+    DELETE FROM student
+    WHERE studentId = ?`;
+    // Insert the new student into the database
+    connection.query( sql , [studentId], (error, results) => {
+    if (error) {
+        // Handle any error that occurs during the database operation
+        console.error("Error deleting student:", error.message);
+        res.send(`Error deleting student with Id: ${studentId}`);
+    } else {
+        // Send a success response
+        res.redirect('/');
+        }
+    });
+});
+
+const PORT = 3000
+app.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`)
+})
